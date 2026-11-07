@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f6fa">
+  <title>Orbit — Quadro Kanban</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 7.5h14M5 12h9M5 16.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="12" r="2" fill="currentColor"/></svg>
+        </span>
+        <span>orbit</span>
+      </div>
+      <span class="topbar-note">Seu espaço de trabalho, em um só lugar</span>
+    </header>
+
+    <main class="main">
+      <section class="heading-row" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Visão geral</p>
+          <h1 id="page-title">Quadro de tarefas</h1>
+          <p class="subtitle">Organize suas ideias e acompanhe cada etapa do seu trabalho.</p>
+        </div>
+        <button class="primary-button" id="open-modal" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Adicionar Nova Tarefa
+        </button>
+      </section>
+
+      <section class="board" aria-label="Quadro Kanban">
+        <section class="column todo" data-status="todo" aria-labelledby="title-todo">
+          <header class="column-header">
+            <h2 class="column-title" id="title-todo"><span class="status-dot"></span>A Fazer</h2>
+            <span class="count" aria-label="0 tarefas">0</span>
+          </header>
+          <div class="card-list" role="list"></div>
+        </section>
+        <section class="column doing" data-status="doing" aria-labelledby="title-doing">
+          <header class="column-header">
+            <h2 class="column-title" id="title-doing"><span class="status-dot"></span>Em Andamento</h2>
+            <span class="count" aria-label="0 tarefas">0</span>
+          </header>
+          <div class="card-list" role="list"></div>
+        </section>
+        <section class="column done" data-status="done" aria-labelledby="title-done">
+          <header class="column-header">
+            <h2 class="column-title" id="title-done"><span class="status-dot"></span>Concluído</h2>
+            <span class="count" aria-label="0 tarefas">0</span>
+          </header>
+          <div class="card-list" role="list"></div>
+        </section>
+      </section>
+      <p class="footer-note">Dica: arraste os cartões para atualizar o andamento das tarefas.</p>
+      <p class="storage-warning" id="storage-warning" role="status">Não foi possível salvar neste navegador. Suas alterações podem não permanecer após fechar esta página.</p>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+      <div class="modal-heading">
+        <div>
+          <h2 id="modal-title">Nova tarefa</h2>
+          <p id="modal-description">Adicione uma atividade ao seu quadro.</p>
+        </div>
+        <button class="close-button" id="close-modal" type="button" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form id="task-form">
+        <div class="field">
+          <label for="task-title">Título</label>
+          <input id="task-title" name="title" type="text" maxlength="100" placeholder="Ex.: Planejar próxima entrega" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="task-description">Descrição <span class="optional-label">(opcional)</span></label>
+          <textarea id="task-description" name="description" maxlength="500" placeholder="Adicione alguns detalhes sobre esta tarefa..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-button" id="cancel-modal" type="button">Cancelar</button>
+          <button class="primary-button" type="submit">Criar tarefa</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
