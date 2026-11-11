@@ -187,8 +187,11 @@
     .secondary-button { min-height: 40px; padding: 0 14px; border: 1px solid #e8e8ee; border-radius: 9px; background: #fff; color: #686c7e; font-size: 12px; font-weight: 600; }
     .secondary-button:hover { background: #f8f8fa; }
     .modal-actions .primary-button { min-height: 40px; font-size: 12px; }
-    .storage-warning { display: none; margin-top: 14px; padding: 10px 12px; border: 1px solid #f0d7a8; border-radius: 9px; background: #fff9ed; color: #805c1a; font-size: 12px; }
+    .storage-warning { display: none; margin-top: 14px; padding: 10px 12px; border: 1px solid #f0d7a8; border-radius: 9px; background: #fff9ed; color: #805c1a; font-size: 12px; line-height: 1.5; }
     .storage-warning.visible { display: block; }
+    .storage-warning[data-level="success"] { border-color: #b8e4cf; background: #effaf4; color: #246b47; }
+    .storage-warning[data-level="error"] { border-color: #f0c2c2; background: #fff2f2; color: #8a3434; }
+    .storage-warning[data-level="loading"] { border-color: #d7d2fa; background: #f5f3ff; color: #5146a5; }
 
     @media (max-width: 900px) {
       .app-shell { padding-right: 24px; padding-left: 24px; }
