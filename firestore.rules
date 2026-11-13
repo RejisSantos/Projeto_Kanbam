@@ -2,16 +2,92 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    function isValidTask() {
-      return request.resource.data.keys().hasAll([
-          'title', 'description', 'status', 'createdAt'
+    function registeredUser() {
+      return signedIn() && request.auth.token.email is string;
+    }
+
+    function boardPath(boardId) {
+      return /databases/$(database)/documents/boards/$(boardId);
+    }
+
+    function memberPath(boardId, userId) {
+      return /databases/$(database)/documents/boards/$(boardId)/members/$(userId);
+    }
+
+    function isMember(boardId) {
+      return registeredUser() && exists(memberPath(boardId, request.auth.uid));
+    }
+
+    function isOwner(boardId) {
+      return isMember(boardId)
+        && get(memberPath(boardId, request.auth.uid)).data.papel == 'OWNER';
+    }
+
+    function canEditBoard(boardId) {
+      return isMember(boardId)
+        && get(memberPath(boardId, request.auth.uid)).data.papel in ['OWNER', 'EDITOR'];
+    }
+
+    function boardCreatedByCaller(boardId) {
+      return registeredUser()
+        && getAfter(boardPath(boardId)).data.dono_id == request.auth.uid
+        && existsAfter(memberPath(boardId, request.auth.uid))
+        && getAfter(memberPath(boardId, request.auth.uid)).data.papel == 'OWNER';
+    }
+
+    function validProfile(userId) {
+      return request.resource.data.keys().hasOnly(['uid', 'email', 'nome', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['uid', 'email', 'nome', 'updatedAt'])
+        && request.resource.data.uid == userId
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.nome.size() <= 80
+        && request.resource.data.updatedAt is string
+        && request.resource.data.updatedAt.size() <= 40;
+    }
+
+    function validBoard() {
+      return request.resource.data.keys().hasOnly(['nome', 'dono_id', 'memberIds', 'createdAt'])
+        && request.resource.data.keys().hasAll(['nome', 'dono_id', 'memberIds', 'createdAt'])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.nome.size() <= 80
+        && request.resource.data.dono_id is string
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() >= 1
+        && request.resource.data.createdAt is string
+        && request.resource.data.createdAt.size() <= 40;
+    }
+
+    function validMember(userId, allowOwner) {
+      return request.resource.data.keys().hasOnly(['userId', 'email', 'nome', 'papel'])
+        && request.resource.data.keys().hasAll(['userId', 'email', 'nome', 'papel'])
+        && request.resource.data.userId == userId
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.nome.size() <= 80
+        && (
+          request.resource.data.papel in ['EDITOR', 'VIEWER']
+          || (allowOwner && request.resource.data.papel == 'OWNER')
+        );
+    }
+
+    function validTask(boardId) {
+      return request.resource.data.keys().hasOnly([
+          'title', 'description', 'status', 'createdAt', 'board_id',
+          'assigneeId', 'dueDate', 'priority', 'labels', 'storyPoints', 'checklist'
         ])
-        && request.resource.data.keys().hasOnly([
-          'title', 'description', 'status', 'createdAt'
+        && request.resource.data.keys().hasAll([
+          'title', 'description', 'status', 'createdAt', 'board_id',
+          'assigneeId', 'dueDate', 'priority', 'labels', 'storyPoints', 'checklist'
         ])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
@@ -20,12 +96,131 @@ service cloud.firestore {
         && request.resource.data.description.size() <= 500
         && request.resource.data.status in ['todo', 'doing', 'done']
         && request.resource.data.createdAt is string
-        && request.resource.data.createdAt.size() <= 40;
+        && request.resource.data.createdAt.size() <= 40
+        && request.resource.data.board_id == boardId
+        && (request.resource.data.assigneeId == null || request.resource.data.assigneeId is string)
+        && (request.resource.data.dueDate == null || request.resource.data.dueDate is string)
+        && request.resource.data.priority in ['LOW', 'MEDIUM', 'HIGH']
+        && request.resource.data.labels is list
+        && request.resource.data.labels.size() <= 10
+        && (request.resource.data.storyPoints == null || request.resource.data.storyPoints is int)
+        && request.resource.data.checklist is list
+        && request.resource.data.checklist.size() <= 50;
     }
 
-    match /users/{userId}/tasks/{taskId} {
-      allow read, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isValidTask();
+    function validColumn(boardId) {
+      return request.resource.data.keys().hasOnly(['nome', 'status', 'position', 'wipLimit', 'board_id'])
+        && request.resource.data.keys().hasAll(['nome', 'status', 'position', 'wipLimit', 'board_id'])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.nome.size() <= 60
+        && request.resource.data.status in ['todo', 'doing', 'done']
+        && request.resource.data.position is int
+        && (request.resource.data.wipLimit == null || (request.resource.data.wipLimit is int
+          && request.resource.data.wipLimit >= 1 && request.resource.data.wipLimit <= 999))
+        && request.resource.data.board_id == boardId;
+    }
+
+    match /users/{userId} {
+      allow read: if registeredUser();
+      allow create, update: if registeredUser()
+        && request.auth.uid == userId
+        && validProfile(userId);
+      allow delete: if false;
+
+      match /tasks/{taskId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+    }
+
+    match /boards/{boardId} {
+      allow create: if validBoard()
+        && registeredUser()
+        && request.resource.data.dono_id == request.auth.uid
+        && request.resource.data.memberIds.size() == 1
+        && request.resource.data.memberIds[0] == request.auth.uid
+        && boardCreatedByCaller(boardId);
+      allow read: if registeredUser()
+        && (
+          resource.data.dono_id == request.auth.uid
+          || resource.data.memberIds.hasAny([request.auth.uid])
+        );
+      allow update: if isOwner(boardId)
+        && validBoard()
+        && request.resource.data.dono_id == resource.data.dono_id
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'memberIds']);
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if isMember(boardId);
+        allow create: if validMember(memberId, true)
+          && (
+            (registeredUser()
+              && memberId == request.auth.uid
+              && request.resource.data.papel == 'OWNER'
+              && boardCreatedByCaller(boardId))
+            || (isOwner(boardId)
+              && memberId != get(boardPath(boardId)).data.dono_id
+              && getAfter(boardPath(boardId)).data.memberIds.hasAny([memberId])
+              && request.resource.data.papel in ['EDITOR', 'VIEWER'])
+          );
+        allow update: if isOwner(boardId)
+          && validMember(memberId, false)
+          && resource.data.userId == memberId
+          && resource.data.papel != 'OWNER'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['papel']);
+        allow delete: if isOwner(boardId)
+          && memberId != get(boardPath(boardId)).data.dono_id
+          && !getAfter(boardPath(boardId)).data.memberIds.hasAny([memberId]);
+      }
+
+      match /columns/{columnId} {
+        allow read: if isMember(boardId);
+        allow create: if validColumn(boardId)
+          && (canEditBoard(boardId) || boardCreatedByCaller(boardId));
+        allow update: if canEditBoard(boardId) && validColumn(boardId);
+        allow delete: if canEditBoard(boardId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isMember(boardId);
+        allow create: if canEditBoard(boardId) && validTask(boardId);
+        allow update: if canEditBoard(boardId)
+          && resource.data.board_id == boardId
+          && validTask(boardId);
+        allow delete: if canEditBoard(boardId)
+          && resource.data.board_id == boardId;
+
+        function taskExists() {
+          return exists(/databases/$(database)/documents/boards/$(boardId)/tasks/$(taskId));
+        }
+
+        function validEntry(fields) {
+          return request.resource.data.keys().hasOnly(fields)
+            && request.resource.data.keys().hasAll(fields)
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.createdAt == request.time;
+        }
+
+        match /comments/{commentId} {
+          allow read: if isMember(boardId) && taskExists();
+          allow create: if canEditBoard(boardId) && taskExists()
+            && validEntry(['authorId', 'authorName', 'text', 'createdAt'])
+            && request.resource.data.authorName == get(memberPath(boardId, request.auth.uid)).data.nome
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 1000;
+        }
+
+        match /activities/{activityId} {
+          allow read: if isMember(boardId) && taskExists();
+          allow create: if canEditBoard(boardId)
+            && existsAfter(/databases/$(database)/documents/boards/$(boardId)/tasks/$(taskId))
+            && validEntry(['authorId', 'action', 'createdAt'])
+            && request.resource.data.action in ['created', 'edited', 'checklist', 'todo', 'doing', 'done'];
+        }
+      }
     }
   }
 }

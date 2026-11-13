@@ -1,0 +1,26 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "FIREBASE_SETUP.md",
+      "*.pdf",
+      "*.doc",
+      "*.docx",
+      "*.xlsx",
+      "*.pptx",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/tasks/**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

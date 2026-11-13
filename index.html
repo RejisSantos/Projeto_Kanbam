@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f5f6fa">
   <title>Orbit — Quadro Kanban</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="app-shell">
@@ -17,19 +17,90 @@
         <span>orbit</span>
       </div>
       <span class="topbar-note">Seu espaço de trabalho, em um só lugar</span>
+      <div class="account-controls" id="account-controls" hidden>
+        <span class="account-email" id="account-email"></span>
+        <button class="secondary-button" id="sign-out" type="button">Sair</button>
+      </div>
     </header>
 
-    <main class="main">
+    <main class="auth-main" id="auth-panel" aria-labelledby="auth-title">
+      <section class="auth-card">
+        <p class="eyebrow">Orbit Kanban</p>
+        <h1 id="auth-title">Entre na sua conta</h1>
+        <p class="auth-description" id="auth-description">Acesse seu quadro com e-mail e senha.</p>
+        <form id="auth-form">
+          <div class="field" id="auth-name-field" hidden>
+            <label for="auth-name">Nome</label>
+            <input id="auth-name" name="name" type="text" autocomplete="name" maxlength="80" placeholder="Seu nome">
+          </div>
+          <div class="field">
+            <label for="auth-email">E-mail</label>
+            <input id="auth-email" name="email" type="email" autocomplete="username" maxlength="254" required placeholder="voce@exemplo.com">
+          </div>
+          <div class="field">
+            <label for="auth-password">Senha</label>
+            <div class="password-input-wrap">
+              <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Mínimo de 6 caracteres">
+              <button class="password-toggle" id="password-visibility-toggle" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+                <svg class="password-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg class="password-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m3 3 18 18"></path>
+                  <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path>
+                  <path d="M9.9 5.2A10.7 10.7 0 0 1 12 5c6 0 9.5 7 9.5 7a15.5 15.5 0 0 1-3.1 3.8"></path>
+                  <path d="M6.6 6.6C3.9 8.3 2.5 12 2.5 12a15 15 0 0 0 9.5 6.5 10 10 0 0 0 3.3-.5"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p class="auth-status" id="auth-status" role="status" aria-live="polite"></p>
+          <button class="primary-button auth-submit" id="auth-submit" type="submit" disabled>Entrar</button>
+        </form>
+        <button class="text-button" id="reset-password" type="button" disabled>Esqueci minha senha</button>
+        <p class="auth-switch">
+          <span id="auth-switch-label">Ainda não tem uma conta?</span>
+          <button class="text-button" id="auth-mode-toggle" type="button" disabled>Criar conta</button>
+        </p>
+      </section>
+    </main>
+
+    <main class="board-picker" id="board-picker" hidden>
+      <div class="board-picker-heading">
+        <div>
+          <p class="eyebrow">Seus espaços de trabalho</p>
+          <h1>Meus quadros</h1>
+          <p class="subtitle">Abra um quadro ou crie um novo para organizar as tarefas.</p>
+        </div>
+        <button class="primary-button" id="create-board" type="button">Criar quadro</button>
+      </div>
+      <section class="board-group" aria-labelledby="owned-boards-title">
+        <h2 id="owned-boards-title">Meus quadros</h2>
+        <div class="board-card-list" id="owned-boards"></div>
+      </section>
+      <section class="board-group" aria-labelledby="shared-boards-title">
+        <h2 id="shared-boards-title">Compartilhados comigo</h2>
+        <div class="board-card-list" id="shared-boards"></div>
+      </section>
+      <p class="storage-warning" id="boards-warning" role="status" aria-live="polite"></p>
+    </main>
+
+    <main class="main" id="board-app" hidden>
       <section class="heading-row" aria-labelledby="page-title">
         <div>
+          <button class="text-button back-to-boards" id="back-to-boards" type="button">← Todos os quadros</button>
           <p class="eyebrow">Visão geral</p>
           <h1 id="page-title">Quadro de tarefas</h1>
-          <p class="subtitle">Organize suas ideias e acompanhe cada etapa do seu trabalho.</p>
+          <p class="subtitle" id="board-subtitle">Organize suas ideias e acompanhe cada etapa do seu trabalho.</p>
         </div>
-        <button class="primary-button" id="open-modal" type="button">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          Adicionar Nova Tarefa
-        </button>
+        <div class="board-actions">
+          <button class="secondary-button" id="manage-members" type="button">Membros</button>
+          <button class="primary-button" id="open-modal" type="button">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Adicionar Nova Tarefa
+          </button>
+        </div>
       </section>
 
       <section class="board" aria-label="Quadro Kanban">
@@ -38,26 +109,76 @@
             <h2 class="column-title" id="title-todo"><span class="status-dot"></span>A Fazer</h2>
             <span class="count" aria-label="0 tarefas">0</span>
           </header>
-          <div class="card-list" role="list"></div>
+          <div class="column-settings"><span class="wip-status"></span><button class="text-button edit-column" type="button" hidden>Editar coluna</button></div><div class="card-list" role="list"></div>
         </section>
         <section class="column doing" data-status="doing" aria-labelledby="title-doing">
           <header class="column-header">
             <h2 class="column-title" id="title-doing"><span class="status-dot"></span>Em Andamento</h2>
             <span class="count" aria-label="0 tarefas">0</span>
           </header>
-          <div class="card-list" role="list"></div>
+          <div class="column-settings"><span class="wip-status"></span><button class="text-button edit-column" type="button" hidden>Editar coluna</button></div><div class="card-list" role="list"></div>
         </section>
         <section class="column done" data-status="done" aria-labelledby="title-done">
           <header class="column-header">
             <h2 class="column-title" id="title-done"><span class="status-dot"></span>Concluído</h2>
             <span class="count" aria-label="0 tarefas">0</span>
           </header>
-          <div class="card-list" role="list"></div>
+          <div class="column-settings"><span class="wip-status"></span><button class="text-button edit-column" type="button" hidden>Editar coluna</button></div><div class="card-list" role="list"></div>
         </section>
       </section>
       <p class="footer-note">Dica: arraste os cartões para atualizar o andamento das tarefas.</p>
       <p class="storage-warning" id="storage-warning" role="status" aria-live="polite"></p>
     </main>
+    <main class="task-page" id="task-page" hidden>
+      <a class="text-button back-to-boards" id="task-back" href="/">← Todos os quadros</a>
+      <h1 id="task-heading">Detalhes da tarefa</h1>
+      <p class="subtitle" id="task-context"></p>
+      <p class="storage-warning" id="task-feedback" role="status"></p>
+      <div class="task-layout" id="task-content" hidden>
+        <section class="task-panel" aria-labelledby="task-fields-title">
+          <h2 id="task-fields-title">Detalhes</h2>
+          <form id="task-details-form">
+            <fieldset id="task-fields">
+              <div class="field"><label for="detail-title">Título</label><input name="title" id="detail-title" required maxlength="100"></div>
+              <div class="field"><label for="detail-description">Descrição</label><textarea name="description" id="detail-description" maxlength="500"></textarea></div>
+              <div class="task-field-grid">
+                <div class="field"><label for="detail-status">Coluna</label><select name="status" id="detail-status"><option value="todo">A Fazer</option><option value="doing">Em Andamento</option><option value="done">Concluído</option></select></div>
+                <div class="field"><label for="detail-assignee">Responsável</label><select name="assigneeId" id="detail-assignee"></select></div>
+                <div class="field"><label for="detail-due">Prazo</label><input name="dueDate" id="detail-due" type="date"></div>
+                <div class="field"><label for="detail-priority">Prioridade</label><select name="priority" id="detail-priority"><option value="LOW">Baixa</option><option value="MEDIUM">Média</option><option value="HIGH">Alta</option></select></div>
+                <div class="field"><label for="detail-points">Story points</label><input name="storyPoints" id="detail-points" type="number" min="0" max="999" step="1"></div>
+                <div class="field"><label for="detail-labels">Etiquetas separadas por vírgula</label><input name="labels" id="detail-labels" maxlength="309" placeholder="Bug, Feature, Urgente"></div>
+              </div>
+              <button class="primary-button" id="task-save" type="submit">Salvar alterações</button>
+            </fieldset>
+          </form>
+          <h2 class="task-section-title">Checklist</h2>
+          <label for="check-progress" id="check-summary">0 de 0 concluídas</label>
+          <progress id="check-progress" value="0" max="1"></progress>
+          <ul class="task-list" id="check-items"></ul>
+          <form class="task-inline-form" id="check-form">
+            <div class="field"><label for="check-text">Nova subtarefa</label><input id="check-text" required maxlength="120"></div>
+            <button class="secondary-button" type="submit">Adicionar</button>
+          </form>
+        </section>
+        <div class="task-side">
+          <section class="task-panel" aria-labelledby="comments-title">
+            <h2 id="comments-title">Comentários</h2>
+            <ul class="task-list" id="task-comments"></ul>
+            <form id="comment-form">
+              <div class="field"><label for="comment-text">Novo comentário</label><textarea id="comment-text" required maxlength="1000" placeholder="Digite @ para mencionar alguém"></textarea></div>
+              <div id="mention-options" aria-label="Sugestões de menção" hidden></div>
+              <button class="primary-button" type="submit">Comentar</button>
+            </form>
+          </section>
+          <section class="task-panel" aria-labelledby="activity-title">
+            <h2 id="activity-title">Histórico</h2>
+            <ul class="task-list" id="task-activities"></ul>
+          </section>
+        </div>
+      </div>
+    </main>
+
   </div>
 
   <div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
@@ -88,6 +209,76 @@
     </section>
   </div>
 
-  <script type="module" src="script.js"></script>
+  <div class="modal-backdrop" id="board-modal-backdrop" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="board-modal-title">
+      <div class="modal-heading">
+        <div>
+          <h2 id="board-modal-title">Criar quadro</h2>
+          <p>Dê um nome para o novo quadro compartilhado.</p>
+        </div>
+        <button class="close-button" id="close-board-modal" type="button" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form id="board-form">
+        <div class="field">
+          <label for="board-name">Nome do quadro</label>
+          <input id="board-name" name="name" type="text" maxlength="80" required placeholder="Ex.: Projeto novo">
+        </div>
+        <p class="storage-warning" id="board-form-warning" role="status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button class="secondary-button" id="cancel-board-modal" type="button">Cancelar</button>
+          <button class="primary-button" type="submit">Criar quadro</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="members-modal-backdrop" aria-hidden="true">
+    <section class="modal members-modal" role="dialog" aria-modal="true" aria-labelledby="members-modal-title">
+      <div class="modal-heading">
+        <div>
+          <h2 id="members-modal-title">Membros do quadro</h2>
+          <p>Convide pessoas e escolha o nível de acesso.</p>
+        </div>
+        <button class="close-button" id="close-members-modal" type="button" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form id="invite-form">
+        <div class="field">
+          <label for="invite-email">E-mail da pessoa</label>
+          <input id="invite-email" name="email" type="email" maxlength="254" required placeholder="colega@exemplo.com">
+        </div>
+        <div class="field">
+          <label for="invite-role">Permissão</label>
+          <select id="invite-role" name="role">
+            <option value="EDITOR">Editor — pode alterar tarefas</option>
+            <option value="VIEWER">Leitor — somente visualização</option>
+          </select>
+        </div>
+        <p class="storage-warning" id="invite-warning" role="status" aria-live="polite"></p>
+        <div class="modal-actions invite-actions">
+          <button class="primary-button" type="submit">Convidar</button>
+        </div>
+      </form>
+      <h3 class="members-heading">Pessoas com acesso</h3>
+      <ul class="member-list" id="member-list"></ul>
+    </section>
+  </div>
+
+  <dialog class="column-dialog" id="column-dialog" aria-labelledby="column-dialog-title">
+    <form id="column-form">
+      <h2 id="column-dialog-title">Editar coluna</h2>
+      <div class="field"><label for="column-name">Nome</label><input id="column-name" name="nome" maxlength="60" required></div>
+      <div class="field"><label for="column-wip">Limite de WIP (opcional)</label><input id="column-wip" name="wipLimit" type="number" min="1" max="999" step="1"></div>
+      <p class="storage-warning" id="column-feedback" role="status"></p>
+      <div class="board-actions">
+        <button class="secondary-button" id="cancel-column" type="button">Cancelar</button>
+        <button class="primary-button" type="submit">Salvar coluna</button>
+      </div>
+    </form>
+  </dialog>
+  <script type="module" src="/script.js"></script>
 </body>
 </html>
