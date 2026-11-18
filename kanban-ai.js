@@ -1,9 +1,9 @@
-// Endereço público do Worker. Preencha depois de publicar no Cloudflare.
-const workerOrigin = "";
+// Endereço do Worker publicado no Cloudflare.
+const workerOrigin = "https://orbit-kanban-ai.orbit-kanban-rejis.workers.dev";
 
 export async function askKanbanAi(user, payload, signal) {
   const localhost = ["localhost", "127.0.0.1"].includes(location.hostname);
-  const origin = workerOrigin || (localhost ? "http://127.0.0.1:8787" : "");
+  const origin = localhost ? "http://127.0.0.1:8787" : workerOrigin;
   if (!origin) throw new Error("O chat ainda precisa do endereço do Worker publicado.");
   const token = await user.getIdToken();
   const response = await fetch(new URL("/api/ai/chat", origin), {
