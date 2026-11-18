@@ -1,4 +1,5 @@
 import { firebaseConfig } from "./firebase-config.js";
+import { setupBoardChat } from "./kanban-ai.js";
 import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
 
 (() => {
@@ -17,6 +18,8 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
   const taskTitleInput = document.getElementById("task-title");
   const taskDescriptionInput = document.getElementById("task-description");
   const taskSubmitButton = taskForm.querySelector('[type="submit"]');
+  const sessionPanel = document.getElementById("session-panel");
+  const sessionStatus = document.getElementById("session-status");
   const authPanel = document.getElementById("auth-panel");
   const authForm = document.getElementById("auth-form");
   const authEmail = document.getElementById("auth-email");
@@ -40,6 +43,11 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
   const boardsWarning = document.getElementById("boards-warning");
   const boardApp = document.getElementById("board-app");
   const boardTitle = document.getElementById("page-title");
+  const renameButton = document.getElementById("rename-board");
+  const renameDialog = document.getElementById("rename-dialog");
+  const renameForm = document.getElementById("rename-form");
+  const renameFeedback = document.getElementById("rename-feedback");
+  let stopBoardName = null;
   const boardSubtitle = document.getElementById("board-subtitle");
   const addTaskButton = document.getElementById("open-modal");
   const membersButton = document.getElementById("manage-members");
@@ -209,7 +217,21 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
     return selectedRole === "OWNER" || selectedRole === "EDITOR";
   }
 
+  function taskDeadline(task, today) {
+    if (task.status === "done") return { type: "done", label: "Concluída" };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || "")) {
+      return { type: "none", label: "Sem prazo" };
+    }
+    const date = task.dueDate.split("-").reverse().join("/");
+    if (task.dueDate < today) return { type: "late", label: `Atrasada · ${date}` };
+    if (task.dueDate === today) return { type: "today", label: `Vence hoje · ${date}` };
+    return { type: "upcoming", label: `No prazo · ${date}` };
+  }
+
   function renderTasks() {
+    const now = new Date();
+    const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+      .map(part => String(part).padStart(2, "0")).join("-");
     document.querySelectorAll(".column").forEach(column => {
       const status = column.dataset.status;
       const list = column.querySelector(".card-list");
@@ -258,20 +280,21 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
           : `/tasks/${encodeURIComponent(task.id)}?${params}`;
         const assignee = boardMembers.get(task.assigneeId);
         const labels = Array.isArray(task.labels) ? task.labels.filter(label => typeof label === "string") : [];
-        const priority = { LOW: "Baixa", MEDIUM: "Média", HIGH: "Alta" }[task.priority] || "Média";
-        const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || "")
-          ? task.dueDate.split("-").reverse().join("/") : "";
+        const priority = ["LOW", "MEDIUM", "HIGH"].includes(task.priority) ? task.priority : "MEDIUM";
+        const priorityLabel = { LOW: "Baixa", MEDIUM: "Média", HIGH: "Alta" }[priority];
+        const deadline = taskDeadline(task, today);
+        card.dataset.deadline = deadline.type;
         card.innerHTML = `
           <div class="card-top">
             <h3 class="task-title"><a href="${escapeHTML(taskUrl)}" target="_blank" rel="noopener">${escapeHTML(task.title)}</a></h3>
-            ${canEditBoard() ? `<button class="delete-button" type="button" aria-label="Excluir tarefa: ${escapeHTML(task.title)}">
+            ${canEditBoard() ? `<div class="task-card-actions"><a class="task-edit" href="${escapeHTML(taskUrl)}" target="_blank" rel="noopener" aria-label="Editar tarefa: ${escapeHTML(task.title)}">Editar</a><button class="delete-button" type="button" aria-label="Excluir tarefa: ${escapeHTML(task.title)}">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>` : ""}
+            </button></div>` : ""}
           </div>
           ${task.description ? `<p class="task-description">${escapeHTML(task.description)}</p>` : ""}
           <div class="task-meta">
-            <span class="task-label">Prioridade ${priority}</span>
-            ${dueDate ? `<span class="task-label">Prazo ${dueDate}</span>` : ""}
+            <span class="task-label priority-${priority.toLowerCase()}">Prioridade ${priorityLabel}</span>
+            <span class="task-label deadline-${deadline.type}">${deadline.label}</span>
             ${Number.isInteger(task.storyPoints) ? `<span class="task-label">${task.storyPoints} pts</span>` : ""}
             ${labels.map(label => `<span class="task-label">${escapeHTML(label)}</span>`).join("")}
           </div>
@@ -438,7 +461,13 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
     return true;
   }
 
+  const resetBoardChat = setupBoardChat(() => selectedBoard, () => currentUser);
+
   function stopBoardListeners() {
+    resetBoardChat();
+    stopBoardName?.();
+    stopBoardName = null;
+    if (renameDialog.open) renameDialog.close();
     [stopTaskListener, stopColumnListener, stopMemberListener, stopBoardMembers].forEach(stop => {
       if (stop) stop();
     });
@@ -456,6 +485,7 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
     selectedRole = null;
     tasks = [];
     boardTitle.textContent = "Quadro de tarefas";
+    sessionPanel.hidden = true;
     boardPicker.hidden = false;
     boardApp.hidden = true;
     authPanel.hidden = true;
@@ -485,6 +515,7 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
     if (taskRoute) {
       if (currentUser?.uid !== user.uid) return;
       stopTaskPage = openTaskPage({ sdk: firebaseSdk, db: database, user, route: taskRoute, report: reportActionError });
+      sessionPanel.hidden = true;
       return;
     }
 
@@ -541,6 +572,7 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
         throw new Error("O quadro tem um papel de acesso inválido.");
       }
       boardTitle.textContent = boardInfo.nome;
+      renameButton.hidden = selectedRole !== "OWNER";
       boardSubtitle.textContent = selectedRole === "OWNER"
         ? "Você é proprietário deste quadro."
         : selectedRole === "EDITOR"
@@ -568,12 +600,26 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
           .catch(error => reportActionError("Não foi possível carregar seus quadros", error, boardsWarning));
       }
 
+      stopBoardName = firebaseSdk.onSnapshot(
+        firebaseSdk.doc(database, "boards", boardInfo.id),
+        snapshot => {
+          if (selectedBoard?.id !== boardInfo.id || !snapshot.exists()) return;
+          selectedBoard.nome = snapshot.data().nome;
+          boardTitle.textContent = selectedBoard.nome;
+        },
+        error => {
+          if (error.code !== "permission-denied") reportActionError("Não foi possível atualizar o nome do quadro", error);
+        }
+      );
+
       stopMemberListener = firebaseSdk.onSnapshot(memberRef, snapshot => {
         if (!snapshot.exists()) {
           leaveRevokedBoard();
           return;
         }
         selectedRole = snapshot.data().papel;
+        renameButton.hidden = selectedRole !== "OWNER";
+        if (renameButton.hidden && renameDialog.open) renameDialog.close();
         boardSubtitle.textContent = selectedRole === "OWNER" ? "Você é proprietário deste quadro."
           : canEditBoard() ? "Você pode editar as tarefas deste quadro." : "Você está visualizando este quadro.";
         if (!canEditBoard()) {
@@ -790,7 +836,7 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
 
   async function initializeBackend() {
     if (window.location.protocol === "file:") {
-      setAuthStatus("Abra o app por um servidor local, como o Live Server, ou pelo endereço publicado no Firebase Hosting.", "error");
+      sessionStatus.textContent = "Abra o app por um servidor local, como o Live Server, ou pelo endereço publicado no Firebase Hosting.";
       return;
     }
 
@@ -800,11 +846,10 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
       return typeof value !== "string" || value.trim() === "" || value.startsWith("COLE_");
     });
     if (missingConfig.length > 0) {
-      setAuthStatus(`Preencha no firebase-config.js: ${missingConfig.join(", ")}.`, "error");
+      sessionStatus.textContent = `Preencha no firebase-config.js: ${missingConfig.join(", ")}.`;
       return;
     }
 
-    setAuthStatus("Conectando ao Firebase...", "loading");
     try {
       const [appSdk, authModule, firestoreModule] = await Promise.all([
         import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
@@ -823,8 +868,9 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
         resetPasswordButton.disabled = false;
         if (user && !user.isAnonymous) {
           initializeSignedInUser(user).catch(error => {
+            if (currentUser !== user) return;
             reportActionError("Não foi possível carregar sua conta e seus quadros", error, boardsWarning);
-            authPanel.hidden = true;
+            sessionPanel.hidden = true;
             boardPicker.hidden = false;
           });
           return;
@@ -839,6 +885,7 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
         accountControls.hidden = true;
         boardPicker.hidden = true;
         boardApp.hidden = true;
+        sessionPanel.hidden = true;
         authPanel.hidden = false;
         setBoardStatus(boardsWarning, "");
         setAuthStatus(
@@ -849,7 +896,7 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
         );
       });
     } catch (error) {
-      setAuthStatus("Não foi possível conectar ao Firebase. Confira o firebase-config.js e a conexão de rede.", "error");
+      sessionStatus.textContent = "Não foi possível conectar ao Firebase. Confira o firebase-config.js e a conexão de rede.";
       console.error("Não foi possível inicializar o Firebase.", error);
     }
   }
@@ -1143,6 +1190,35 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
     });
   });
 
+  renameButton.addEventListener("click", () => {
+    if (selectedRole !== "OWNER" || !selectedBoard) return;
+    renameForm.elements.nome.value = selectedBoard.nome;
+    setBoardStatus(renameFeedback, "");
+    renameDialog.showModal();
+    renameForm.elements.nome.select();
+  });
+  document.getElementById("cancel-rename").addEventListener("click", () => renameDialog.close());
+  renameForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (selectedRole !== "OWNER" || !selectedBoard) return;
+    const nome = renameForm.elements.nome.value.trim();
+    if (!nome) return setBoardStatus(renameFeedback, "Informe o nome do projeto.");
+    const boardId = selectedBoard.id;
+    const submit = renameForm.querySelector('[type="submit"]');
+    submit.disabled = true;
+    setBoardStatus(renameFeedback, "");
+    try {
+      await firebaseSdk.updateDoc(firebaseSdk.doc(database, "boards", boardId), { nome });
+      if (selectedBoard?.id === boardId && renameDialog.open) renameDialog.close();
+    } catch (error) {
+      if (selectedBoard?.id === boardId && renameDialog.open) {
+        reportActionError("Não foi possível renomear o quadro", error, renameFeedback);
+      }
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
   document.getElementById("cancel-column").addEventListener("click", () => columnDialog.close());
   columnForm.addEventListener("submit", async event => {
     event.preventDefault();
@@ -1168,5 +1244,8 @@ import { getTaskRoute, openTaskPage, recordActivity } from "./task-page.js";
   });
 
   setAuthMode("login");
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && selectedBoard) renderTasks();
+  });
   initializeBackend();
 })();

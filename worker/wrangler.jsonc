@@ -1,0 +1,28 @@
+{
+  "name": "orbit-kanban-ai",
+  "main": "index.mjs",
+  "compatibility_date": "2026-11-14",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "KANBAN_ORIGINS": "https://projeto-kanban-814d3.web.app,https://projeto-kanban-814d3.firebaseapp.com,http://localhost:5500,http://127.0.0.1:5500"
+  },
+  "ratelimits": [
+    {
+      "name": "USER_RATE",
+      "namespace_id": "814301",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    },
+    {
+      "name": "IP_RATE",
+      "namespace_id": "814302",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ]
+}

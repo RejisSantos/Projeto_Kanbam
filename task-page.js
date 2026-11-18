@@ -1,3 +1,5 @@
+import { askKanbanAi } from "./kanban-ai.js";
+
 export function recordActivity(sdk, writer, taskRef, user, action) {
   writer.set(sdk.doc(sdk.collection(taskRef, "activities")), {
     authorId: user.uid,
@@ -40,6 +42,21 @@ export function openTaskPage({ sdk, db, user, route, report }) {
   let editing = false;
   let closed = false;
   let busy = false;
+  const aiButton = get("ai-checklist");
+  const aiPreview = get("ai-checklist-preview");
+  const aiApply = get("ai-checklist-apply");
+  const aiStatus = get("ai-checklist-status");
+  let generating = false;
+  let generationRequest;
+  let suggestions = [];
+
+  function clearSuggestions() {
+    suggestions = [];
+    aiPreview.hidden = true;
+    aiStatus.textContent = "";
+    get("ai-checklist-items").replaceChildren();
+  }
+  clearSuggestions();
 
   function show(message, level = "error") {
     feedback.textContent = message;
@@ -49,6 +66,8 @@ export function openTaskPage({ sdk, db, user, route, report }) {
 
   function stop() {
     closed = true;
+    generationRequest?.abort();
+    clearSuggestions();
     listeners.splice(0).forEach(unsubscribe => unsubscribe());
     page.hidden = true;
     document.title = "Orbit — Quadro Kanban";
@@ -97,6 +116,14 @@ export function openTaskPage({ sdk, db, user, route, report }) {
     fields.disabled = !editing || busy;
     save.hidden = !editing;
     checkForm.hidden = !editing;
+    aiButton.hidden = !editing;
+    aiButton.disabled = busy || generating;
+    if (!editing) {
+      generationRequest?.abort();
+      clearSuggestions();
+    }
+    aiPreview.hidden = !editing || suggestions.length === 0;
+    aiApply.disabled = busy || generating;
     commentForm.hidden = !editing;
     checkForm.querySelector("button").disabled = busy;
     commentForm.querySelector("button").disabled = busy;
@@ -221,6 +248,57 @@ export function openTaskPage({ sdk, db, user, route, report }) {
         if (Object.keys(updates).some(key => key !== "status")) recordActivity(sdk, transaction, taskRef, user, "edited");
       });
       dirty.clear();
+    });
+  };
+
+  aiButton.onclick = async () => {
+    if (!editing || busy || generating || closed || !task) return;
+    if (checklist(task).length >= 50) {
+      aiStatus.textContent = "O checklist já tem 50 subtarefas.";
+      return;
+    }
+    clearSuggestions();
+    generating = true;
+    generationRequest = new AbortController();
+    aiStatus.textContent = "Gerando sugestões…";
+    refresh();
+    try {
+      const result = await askKanbanAi(user, { boardId: route.boardId, action: "subtasks", taskId: route.id }, generationRequest.signal);
+      if (!editing || closed || generationRequest.signal.aborted) return;
+      suggestions = result.subtasks;
+      const items = suggestions.map(text => {
+        const item = document.createElement("li");
+        item.textContent = text;
+        return item;
+      });
+      get("ai-checklist-items").replaceChildren(...items);
+      aiStatus.textContent = items.length ? "" : "A IA não encontrou subtarefas para sugerir.";
+    } catch (error) {
+      if (!closed && editing && !generationRequest.signal.aborted) aiStatus.textContent = error.name === "TimeoutError"
+        ? "A IA demorou para responder. Tente novamente."
+        : error.message;
+    } finally {
+      generating = false;
+      generationRequest = null;
+      refresh();
+    }
+  };
+
+  get("ai-checklist-discard").onclick = clearSuggestions;
+  aiApply.onclick = () => {
+    if (!editing || busy || generating || !suggestions.length) return;
+    const newItems = suggestions.map(text => ({ id: crypto.randomUUID(), text, done: false }));
+    perform("Não foi possível adicionar as sugestões", async () => {
+      await changeChecklist(items => {
+        const existing = new Set(items.map(item => item.text.trim().toLowerCase()));
+        return [...items, ...newItems.filter(item => {
+          const key = item.text.toLowerCase();
+          if (existing.has(key)) return false;
+          existing.add(key);
+          return true;
+        })];
+      });
+      clearSuggestions();
     });
   };
 

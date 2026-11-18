@@ -68,3 +68,20 @@ Como o aplicativo usa módulos JavaScript, não abra `index.html` diretamente co
 - A configuração Web (`apiKey`, `projectId` e semelhantes) é identificadora do projeto, não uma chave privada. A segurança dos dados depende das regras do Firestore; não publique regras abertas.
 
 Referências oficiais: [adicionar o Firebase ao app Web](https://firebase.google.com/docs/web/setup), [autenticação por e-mail e senha](https://firebase.google.com/docs/auth/web/password-auth), [Firebase Hosting](https://firebase.google.com/docs/hosting) e [regras do Firestore](https://firebase.google.com/docs/firestore/security/get-started).
+
+## Atividade complementar com Gemini
+
+O site, o login e os dados continuam no Firebase Spark. O Cloudflare Worker recebe a rota `/api/ai/chat`, confirma a conta no Firebase Authentication e consulta os cartões usando o token da própria pessoa. As regras do Firestore continuam valendo. O chat exige participação no quadro e o gerador de subtarefas exige papel de proprietário ou editor.
+
+### Publicação nos planos gratuitos
+
+1. No [Google AI Studio](https://aistudio.google.com/apikey), crie uma chave em um projeto **Free Tier**, com faturamento desativado, que tenha acesso ao modelo Gemini 3.1 Flash-Lite. Use cartões de demonstração sem dados confidenciais. As entradas do plano gratuito podem ser usadas pelo Google para melhorar os produtos.
+2. Crie uma conta **Workers Free** no [Cloudflare](https://dash.cloudflare.com/). Com Node.js e npm disponíveis, abra o terminal na pasta do projeto e rode `npx wrangler login`. Conclua a autorização no navegador.
+3. Rode `npx wrangler secret put GEMINI_API_KEY --config worker/wrangler.jsonc` e informe a chave somente no terminal quando solicitado. Se a CLI pedir para criar o Worker, confirme no plano gratuito. Rode `npx wrangler deploy --config worker/wrangler.jsonc`.
+4. Copie a URL HTTPS `workers.dev` exibida pelo deploy para a constante `workerOrigin` no início de `kanban-ai.js`. Se usar outro domínio de Hosting, inclua sua origem em `KANBAN_ORIGINS` no arquivo `worker/wrangler.jsonc` e publique o Worker novamente.
+5. Rode `firebase deploy --project projeto-kanban-814d3 --only hosting` com a CLI autenticada. O link público atual do Kanban continua o mesmo. A opção já usada de executar a CLI do Firebase via Node também funciona com os mesmos argumentos.
+6. No Kanban publicado, consulte um quadro com cartões e gere sugestões em uma tarefa como Editor. Como Leitor, a consulta continua disponível e o botão de gerar subtarefas fica oculto.
+
+Para testar localmente, use o Live Server na porta 5500 e rode `npx wrangler dev --config worker/wrangler.jsonc`. Crie `worker/.dev.vars` com `GEMINI_API_KEY=...` apenas no seu computador. Deixe `workerOrigin` vazio para que o Live Server use o Worker local na porta 8787. O teste usa as contas e os quadros existentes no Firebase.
+
+O Worker limita solicitações por conta e por endereço IP na localização do Cloudflare que atende o pedido. Se a API do Gemini devolver limite de uso, o chat mostra esse aviso. Cada consulta analisa até 200 cartões, 200 membros e 200 colunas.

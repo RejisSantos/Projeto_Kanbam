@@ -23,7 +23,12 @@
       </div>
     </header>
 
-    <main class="auth-main" id="auth-panel" aria-labelledby="auth-title">
+    <main class="auth-main" id="session-panel">
+      <p id="session-status" role="status">Verificando sua sessão…</p>
+      <noscript>Ative o JavaScript para acessar o Orbit Kanban.</noscript>
+    </main>
+
+    <main class="auth-main" id="auth-panel" aria-labelledby="auth-title" hidden>
       <section class="auth-card">
         <p class="eyebrow">Orbit Kanban</p>
         <h1 id="auth-title">Entre na sua conta</h1>
@@ -91,10 +96,14 @@
         <div>
           <button class="text-button back-to-boards" id="back-to-boards" type="button">← Todos os quadros</button>
           <p class="eyebrow">Visão geral</p>
-          <h1 id="page-title">Quadro de tarefas</h1>
+          <div class="board-name-heading">
+            <h1 id="page-title">Quadro de tarefas</h1>
+            <button class="secondary-button" id="rename-board" type="button" hidden>Renomear quadro</button>
+          </div>
           <p class="subtitle" id="board-subtitle">Organize suas ideias e acompanhe cada etapa do seu trabalho.</p>
         </div>
         <div class="board-actions">
+          <button class="secondary-button" id="open-ai-chat" type="button">Pergunte ao seu projeto</button>
           <button class="secondary-button" id="manage-members" type="button">Membros</button>
           <button class="primary-button" id="open-modal" type="button">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -160,6 +169,14 @@
             <div class="field"><label for="check-text">Nova subtarefa</label><input id="check-text" required maxlength="120"></div>
             <button class="secondary-button" type="submit">Adicionar</button>
           </form>
+          <button class="secondary-button" id="ai-checklist" type="button" hidden>Quebrar em subtarefas</button>
+          <div id="ai-checklist-preview" hidden>
+            <p>Revise as sugestões antes de adicionar ao checklist.</p>
+            <ul id="ai-checklist-items"></ul>
+            <button class="primary-button" id="ai-checklist-apply" type="button">Adicionar sugestões</button>
+            <button class="secondary-button" id="ai-checklist-discard" type="button">Descartar</button>
+          </div>
+          <p id="ai-checklist-status" role="status"></p>
         </section>
         <div class="task-side">
           <section class="task-panel" aria-labelledby="comments-title">
@@ -267,6 +284,40 @@
     </section>
   </div>
 
+  <dialog class="ai-chat" id="ai-chat" aria-labelledby="ai-chat-title">
+    <header class="ai-chat-header">
+      <h2 id="ai-chat-title">Pergunte ao seu projeto</h2>
+      <button class="secondary-button" id="close-ai-chat" type="button">Fechar</button>
+    </header>
+    <div class="ai-suggestions" aria-label="Perguntas sugeridas">
+      <button class="secondary-button" type="button" data-question="O que está travado?">O que está travado?</button>
+      <button class="secondary-button" type="button" data-question="O que falta para lançar?">O que falta para lançar?</button>
+      <button class="secondary-button" type="button" data-question="Quem tem mais tarefas?">Quem tem mais tarefas?</button>
+    </div>
+    <div class="ai-log" id="ai-log" role="log" aria-label="Conversa sobre o quadro" tabindex="0"></div>
+    <form id="ai-form">
+      <div class="field">
+        <label for="ai-question">Sua pergunta</label>
+        <textarea id="ai-question" rows="2" maxlength="500" required></textarea>
+      </div>
+      <p id="ai-feedback" role="status"></p>
+      <button class="primary-button" type="submit">Enviar</button>
+    </form>
+  </dialog>
+  <dialog class="column-dialog" id="rename-dialog" aria-labelledby="rename-title">
+    <form id="rename-form">
+      <h2 id="rename-title">Renomear quadro</h2>
+      <div class="field">
+        <label for="rename-name">Nome do projeto</label>
+        <input id="rename-name" name="nome" required maxlength="80" autofocus>
+      </div>
+      <p class="storage-warning" id="rename-feedback" role="status"></p>
+      <div class="board-actions">
+        <button class="secondary-button" id="cancel-rename" type="button">Cancelar</button>
+        <button class="primary-button" type="submit">Salvar nome</button>
+      </div>
+    </form>
+  </dialog>
   <dialog class="column-dialog" id="column-dialog" aria-labelledby="column-dialog-title">
     <form id="column-form">
       <h2 id="column-dialog-title">Editar coluna</h2>
